@@ -28,3 +28,8 @@ Phase 1 では、以下は意図的に行いません。
 ## ライセンス
 
 MIT License
+
+---
+
+This repository is currently developed as a solo project.
+Contributions are not accepted at this stage.
