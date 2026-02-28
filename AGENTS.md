@@ -50,5 +50,11 @@
 
 ## Dogfooding
 
-- dogfooding 中に依存ライブラリや開発フローの摩擦を見つけたら、継続的に改善案を提案する
-- 提案はまずこのリポジトリ側で吸収できる整理を優先し、それでも残る摩擦だけを upstream 候補として切り出す
+- dogfooding 中に依存ライブラリや開発フローの摩擦を見つけたら、まず downstream (`coffee-lounge`) 側で吸収できるかを検討する
+- upstream に上げるのは、rawsql-ts の使い方・仕様・UX が原因の摩擦に限定する
+- Dogfooding Notes には upstream-facing friction だけを残し、downstream mitigations は別セクションで短く扱う
+- upstream 提案にする場合は、必ず以下をセットで残す
+  - evidence（どこで詰まったか）
+  - minimal reproduction（最小例）
+  - proposed upstream change（Docs / Recipe / Tests / Helper のどれか）
+- app 固有の設計改善（例: repo 層の分割、トランザクション制御の置き場所など）は upstream へ混ぜず downstream に留める

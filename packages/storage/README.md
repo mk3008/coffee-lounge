@@ -18,6 +18,8 @@
   - attachment metadata writes
 - `src/internal/snapshot-repository.ts`
   - export / import of the logical dataset
+- `src/internal/db/with-transaction.ts`
+  - transaction boundary helper for atomic repository workflows
 
 `PgChatStorage` orchestrates those repositories. It should stay as an application
 service boundary, not a place where ad-hoc SQL accumulates.

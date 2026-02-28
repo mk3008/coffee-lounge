@@ -1,79 +1,117 @@
-# rawsql-ts Dogfooding Notes
+# coffee-lounge Dogfooding Notes
 
 ## Scope
 
-This note captures friction discovered while wiring `coffee-lounge` to local `rawsql-ts` repositories instead of npm packages.
+This note captures upstream-facing friction only.
+It is intended as input for improving `rawsql-ts`, not as a general application
+refactor log.
 
-## Confirmed friction
+## Confirmed frictions (rawsql-ts)
 
-### 1. Monorepo path ergonomics are still manual
+### 1. Catalog wiring is repetitive in monorepo package layouts
 
-What happened:
-- `sql-contract` catalog wiring required explicit custom loaders pointing at `packages/storage/src/sql`.
-- After moving runtime code out of the root `src`, every loader and test import path had to be updated manually.
+Friction summary:
+- file-backed SQL catalogs require repeated loader wiring and repeated path
+  decisions when SQL lives inside a package such as `packages/storage/src/sql`
 
-Why this matters:
-- The current API is flexible, but monorepo package layouts need repetitive `resolve(process.cwd(), "...")` code.
-- This creates unnecessary churn when code is reorganized between packages.
+Evidence:
+- the integration needed explicit file-loader setup for each repository entry
+  point before the code became readable
+- the friction surfaced while moving storage code from the repo root into the
+  package-local monorepo layout
 
-Possible improvement:
-- Add a small helper in `sql-contract` docs or runtime utilities for file-backed catalog loaders.
-- Example shape: `createFileCatalogLoader({ baseDir })`.
+Impact:
+- first-time users can get the feature working, but the initial code reads as
+  wiring noise instead of query intent
+- reorganizing package paths causes avoidable churn unless the project invents a
+  local helper
 
-### 2. Catalog validation order is easy to misunderstand
+Proposed upstream change:
+- Docs / Recipe: provide a recommended file-backed loader pattern for monorepos
+  and package-local SQL directories
+- Tests: add one example or regression test that uses a stable file-backed loader
+  rooted in a package directory
+- Optional helper: a tiny helper is acceptable later, but docs/recipe/test should
+  be the first step
 
-What happened:
-- Initial tests failed because `output.validate` was written against raw snake_case rows.
-- In practice, validation runs after `output.mapping`, so validators must accept mapped DTOs.
+### 2. `mapping -> validate` execution order is easy to misread
 
-Why this matters:
-- This is a correct design, but it is easy to misuse when introducing `rowMapping` for the first time.
-- The failure mode shows up only at runtime unless tests are written early.
+Friction summary:
+- it is not obvious on first read that `output.validate` receives the mapped DTO
+  after `output.mapping`, not the raw SQL row
 
-Possible improvement:
-- Strengthen documentation around the execution order.
-- Add one focused example showing:
-  - raw SQL row
-  - mapping result
-  - DTO validator running after mapping
+Evidence:
+- the first integration pass wrote validators against raw snake_case rows
+- the mismatch only became clear after repository tests failed and the runtime
+  flow was inspected
 
-### 3. Scalar contracts are less expressive than row-mapped contracts
+Impact:
+- this creates an easy first-time mistake around DTO validation
+- the failure mode is subtle enough that many users will only catch it after
+  writing tests or running real queries
 
-What happened:
-- For `UPDATE ... RETURNING thread_id`, using a mapped object contract was awkward when the final desired value was a scalar string.
-- The simplest solution was to skip mapping and validate the scalar directly.
+Proposed upstream change:
+- Docs / README: explicitly describe `raw row -> mapping -> validate`
+- Recipe: include a concrete mapped DTO example beside the execution-order
+  explanation
+- Tests: keep a focused test that locks in validation of the mapped DTO
 
-Why this matters:
-- Scalar queries are common for `count(*)`, `returning id`, and similar workflows.
-- The current path works, but the ergonomics are uneven compared with row contracts.
+### 3. Scalar query guidance is under-specified
 
-Possible improvement:
-- Document the recommended scalar patterns more explicitly.
-- If needed, consider a tiny helper for extracting one named column before validation.
+Friction summary:
+- `count(*)` and `RETURNING thread_id` style queries work, but the most natural
+  style for scalar contracts is not obvious from first use
 
-### 4. Dogfooding with local packages needs clearer guidance
+Evidence:
+- the first drafts modeled those queries as one-field DTOs before switching to a
+  scalar contract
+- once the scalar path was used directly, the intent became clearer immediately
 
-What happened:
-- Using the local repository code worked after switching to a `file:` dependency and `npm install --ignore-scripts`.
-- Without that, workspace build hooks and import resolution were easy to trip over.
+Impact:
+- users can arrive at a working solution, but often by taking an awkward detour
+  through unnecessary DTO shapes
+- this makes the API feel less coherent than it actually is
 
-Why this matters:
-- Dogfooding local package code is a likely workflow for `rawsql-ts` itself.
-- Clear guidance reduces false negatives caused by workspace wiring rather than library behavior.
+Proposed upstream change:
+- Docs / Recipe: document the preferred scalar pattern directly
+- Tests: keep one example around `count(*)` or `RETURNING id`
+- Helper: optional only if docs still prove insufficient after more adoption
 
-Possible improvement:
-- Add a short recipe for local package consumption from another repo.
-- Include notes for npm workspaces and postinstall/build interactions.
+### 4. Transaction boundaries should stay outside catalog scope
 
-## Current status
+Friction summary:
+- transaction control can look like part of the SQL asset story if downstream
+  code starts expressing BEGIN/COMMIT/ROLLBACK next to catalog-managed SQL
 
-- No rawsql-ts source changes were made yet.
-- No PR has been opened yet.
-- These notes are based on actual integration work in `coffee-lounge`, not hypothetical concerns.
+Evidence:
+- during storage cleanup it was possible to drift into treating transaction
+  commands like SQL assets instead of execution control
 
-## coffee-lounge-side mitigations applied
+Impact:
+- this blurs the boundary between query assets and execution policy
+- first-time users may overgeneralize catalog scope and expect it to manage
+  transaction orchestration
 
-- Added `createPositionalCatalog(...)` so file-loader wiring and positional-param checks are declared once.
-- Added `mappedOutput(...)` to make the `mapping -> validate` order obvious in every `QuerySpec`.
-- Added `scalarOutput(...)` and used it for `RETURNING thread_id`, which reads more naturally than a one-field DTO.
-- Documented the patterns in `README.md` so future integrations have a concrete reference implementation.
+Proposed upstream change:
+- Docs: state clearly that transaction boundaries are outside catalog scope and
+  remain the caller's execution concern
+
+## Downstream mitigations (coffee-lounge)
+
+- local helpers (`createPositionalCatalog`, `mappedOutput`, `scalarOutput`) were
+  added so the app could stay readable without forcing an upstream API
+- transaction control stayed in application code through `withTransaction(...)`
+  rather than being treated as an upstream catalog concern
+
+## Non-goals
+
+- app-specific cleanup is not upstream dogfooding feedback
+- repository splitting, storage orchestration, and transaction helper placement
+  inside `coffee-lounge` are downstream concerns unless they expose a rawsql-ts
+  usability problem
+
+## Rule of thumb
+
+- promote a note upstream only when the friction comes from using rawsql-ts
+- every upstream note should include evidence, a minimal reproduction, and a
+  concrete `Proposed upstream change`

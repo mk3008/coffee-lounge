@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 import { type Pool, type PoolClient } from "pg";
 
+import { withTransaction } from "./db/with-transaction.js";
 import { loadStorageSql } from "./storage-sql.js";
 
 interface SnapshotPayload {
@@ -19,9 +20,6 @@ export class SnapshotRepository {
   private readonly selectMessagesSql = loadStorageSql("snapshot/select_messages_for_export.sql");
   private readonly selectAttachmentsSql = loadStorageSql("snapshot/select_attachments_for_export.sql");
   private readonly selectSettingsSql = loadStorageSql("snapshot/select_settings_for_export.sql");
-  private readonly beginTransactionSql = loadStorageSql("snapshot/begin_transaction.sql");
-  private readonly commitTransactionSql = loadStorageSql("snapshot/commit_transaction.sql");
-  private readonly rollbackTransactionSql = loadStorageSql("snapshot/rollback_transaction.sql");
   private readonly truncateSnapshotTablesSql = loadStorageSql("snapshot/truncate_snapshot_tables.sql");
   private readonly insertThreadSql = loadStorageSql("snapshot/insert_thread_snapshot_row.sql");
   private readonly insertMessageSql = loadStorageSql("snapshot/insert_message_snapshot_row.sql");
@@ -49,11 +47,8 @@ export class SnapshotRepository {
   public async importFrom(sourceDirectory: string): Promise<string> {
     const sourcePath = resolve(sourceDirectory, this.exportFileName);
     const payload = JSON.parse(readFileSync(sourcePath, "utf8")) as SnapshotPayload;
-    const client = await this.pool.connect();
 
-    try {
-      await client.query(this.beginTransactionSql);
-
+    await withTransaction(this.pool, async (client) => {
       // Replace the logical dataset atomically so imports cannot leave partial state behind.
       await client.query(this.truncateSnapshotTablesSql);
 
@@ -61,14 +56,7 @@ export class SnapshotRepository {
       await this.insertMessages(client, payload.messages);
       await this.insertAttachments(client, payload.attachments);
       await this.insertSettings(client, payload.settings);
-
-      await client.query(this.commitTransactionSql);
-    } catch (error) {
-      await client.query(this.rollbackTransactionSql);
-      throw error;
-    } finally {
-      client.release();
-    }
+    });
 
     return sourcePath;
   }
