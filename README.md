@@ -33,3 +33,86 @@ MIT License
 
 This repository is currently developed as a solo project.
 Contributions are not accepted at this stage.
+
+## CLI MVP
+
+### Install
+
+```bash
+npm install
+```
+
+### Local rawsql-ts / ZTD usage
+
+This project does not rely on the npm-published `rawsql-ts` packages.
+Instead it uses the local repository checkout at:
+
+```text
+../rawsql-ts
+```
+
+ZTD commands are forwarded to the locally built CLI:
+
+```bash
+npm run ztd:config
+npm run ztd:ddl:diff
+npm run ztd:ddl:pull
+```
+
+### SQL catalog patterns used here
+
+`coffee-lounge` keeps the SQL catalog inside `packages/storage` and uses two small project-local conventions:
+
+- `createPositionalCatalog(...)` centralizes the file-backed loader and the positional-parameter guard.
+- `mappedOutput(...)` makes it explicit that `validate` runs after `rowMapping`.
+- `scalarOutput(...)` is used for `count(*)` / `RETURNING id` style queries, where a scalar contract is clearer than inventing a one-field DTO.
+
+These helpers live in:
+
+```text
+packages/storage/src/internal/catalog/catalog-factory.ts
+packages/storage/src/internal/catalog/spec-helpers.ts
+```
+
+This is intentionally application-side glue for dogfooding. It documents the patterns that felt natural before proposing any upstream rawsql-ts API changes.
+
+### Postgres runtime
+
+Set `DATABASE_URL` before running the CLI.
+
+```bash
+export DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/coffee_lounge
+```
+
+Schema DDL is stored in:
+
+```text
+ztd/ddl/public.sql
+```
+
+### OpenAI browser auth
+
+This project uses the Codex CLI browser login flow instead of API keys.
+
+```bash
+codex login
+```
+
+If login succeeds, the chat provider uses the authenticated Codex CLI session for responses.
+
+### Run
+
+```bash
+npm run coffee -- chat
+npm run coffee -- threads
+npm run coffee -- search "keyword"
+npm run coffee -- export ./backup
+npm run coffee -- import ./backup
+```
+
+### Persistence
+
+- Postgres database: defined by `DATABASE_URL`
+- Persona file: `packages/chat/personas/default.md`
+- DDL source: `ztd/ddl/public.sql`
+- Temp files: `tmp/`
