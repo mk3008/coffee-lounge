@@ -81,13 +81,21 @@ This is intentionally application-side glue for dogfooding. It documents the pat
 Set `DATABASE_URL` before running the CLI.
 
 ```bash
-export DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/coffee_lounge
+docker compose -f compose.postgres.yml up -d
+export DATABASE_URL=postgres://app_user:app_password@127.0.0.1:5432/app_db
 ```
 
 Schema DDL is stored in:
 
 ```text
 ztd/ddl/public.sql
+```
+
+For pg-testkit-backed tests, use the same container and point `TEST_PG_URI` at it:
+
+```bash
+export TEST_PG_URI=postgres://app_user:app_password@127.0.0.1:5432/app_db
+npm test
 ```
 
 ### OpenAI browser auth
@@ -105,6 +113,7 @@ If login succeeds, the chat provider uses the authenticated Codex CLI session fo
 ```bash
 npm run coffee -- chat
 npm run coffee -- threads
+npm run coffee -- history
 npm run coffee -- search "keyword"
 npm run coffee -- export ./backup
 npm run coffee -- import ./backup

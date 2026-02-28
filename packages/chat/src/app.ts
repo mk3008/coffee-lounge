@@ -11,6 +11,8 @@ import {
   type ThreadRecord,
 } from "@coffee-lounge/storage";
 
+import { renderChatBanner, renderThreadHistory } from "./frontend.js";
+
 export interface AppContext {
   storage: PgChatStorage;
   provider: CodexCliProvider;
@@ -104,14 +106,15 @@ export async function runChat(context: AppContext, options: ChatOptions): Promis
   const thread = await openThread(context, options);
   const attached = await persistAttachmentMetadata(context, thread.id, options.attach ?? []);
   const readline = createInterface({ input, output });
+  const history = await context.storage.listMessages(thread.id, settings.contextMessageLimit);
 
-  output.write(`Thread: ${thread.id} (${thread.title})\n`);
-  output.write(`Model: ${settings.model}\n`);
-  output.write(`Persona: ${settings.personaFile}\n`);
-  if (attached > 0) {
-    output.write(`Attachments stored: ${attached}\n`);
+  output.write(renderChatBanner({ thread, settings, attachmentCount: attached }));
+  output.write("\n");
+
+  if (history.length > 0) {
+    output.write("Recent messages:\n");
+    output.write(`${renderThreadHistory(history)}\n\n`);
   }
-  output.write("Type /exit to quit.\n\n");
 
   try {
     while (true) {
@@ -127,7 +130,7 @@ export async function runChat(context: AppContext, options: ChatOptions): Promis
       }
 
       if (trimmed === "/help") {
-        output.write("/exit, /quit, /help, /attach <path>\n");
+        output.write("/exit, /quit, /help, /attach <path>, /history\n");
         continue;
       }
 
@@ -135,6 +138,15 @@ export async function runChat(context: AppContext, options: ChatOptions): Promis
         const path = trimmed.slice("/attach ".length).trim();
         const count = await persistAttachmentMetadata(context, thread.id, [path]);
         output.write(`Stored ${count} attachment metadata item(s).\n`);
+        continue;
+      }
+
+      if (trimmed === "/history") {
+        const recentMessages = await context.storage.listMessages(
+          thread.id,
+          (await context.storage.getSettings()).contextMessageLimit,
+        );
+        output.write(`${renderThreadHistory(recentMessages)}\n`);
         continue;
       }
 
@@ -179,6 +191,19 @@ export async function runChat(context: AppContext, options: ChatOptions): Promis
   }
 }
 
+async function getCurrentOrLatestThread(context: AppContext): Promise<ThreadRecord | null> {
+  const currentThreadId = (await context.storage.getSettings()).currentThreadId;
+
+  if (currentThreadId) {
+    const currentThread = await context.storage.getThread(currentThreadId);
+    if (currentThread) {
+      return currentThread;
+    }
+  }
+
+  return context.storage.getLatestThread();
+}
+
 export async function listThreads(context: AppContext, limit: number): Promise<string> {
   const threads = await context.storage.listThreads(limit);
 
@@ -217,6 +242,23 @@ export async function searchMessages(
         `${result.createdAt}\t${result.threadId}\t${result.role}\t${result.content.replace(/\s+/g, " ").slice(0, 120)}`,
     )
     .join("\n");
+}
+
+export async function showThreadHistory(
+  context: AppContext,
+  threadId: string | undefined,
+  limit: number,
+): Promise<string> {
+  const thread = threadId
+    ? await context.storage.getThread(threadId)
+    : await getCurrentOrLatestThread(context);
+
+  if (!thread) {
+    return "No messages yet.";
+  }
+
+  const messages = await context.storage.listMessages(thread.id, limit);
+  return renderThreadHistory(messages, limit);
 }
 
 export function exportDatabase(context: AppContext, targetDirectory: string): Promise<string> {

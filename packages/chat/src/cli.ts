@@ -10,6 +10,7 @@ import {
   runChat,
   searchMessages,
   setConfig,
+  showThreadHistory,
   switchThread,
 } from "./app.js";
 
@@ -71,6 +72,20 @@ program
     const app = await createApp(process.cwd());
     try {
       console.log(await switchThread(app, threadId));
+    } finally {
+      await app.storage.close();
+    }
+  });
+
+program
+  .command("history")
+  .description("Show recent messages for the current or specified thread")
+  .argument("[threadId]", "Thread id")
+  .option("--limit <limit>", "Maximum number of messages", "20")
+  .action(async (threadId: string | undefined, options: { limit: string }) => {
+    const app = await createApp(process.cwd());
+    try {
+      console.log(await showThreadHistory(app, threadId, Number(options.limit)));
     } finally {
       await app.storage.close();
     }
