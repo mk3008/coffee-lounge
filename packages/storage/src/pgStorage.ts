@@ -36,6 +36,18 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+export function mergeRuntimeSettings(
+  current: RuntimeSettings,
+  next: Partial<RuntimeSettings>,
+): RuntimeSettings {
+  const definedEntries = Object.entries(next).filter(([, value]) => value !== undefined);
+
+  return {
+    ...current,
+    ...Object.fromEntries(definedEntries),
+  };
+}
+
 export class PgChatStorage implements ChatStorage {
   private readonly pool: Pool;
   private readonly ddlFile: string;
@@ -91,7 +103,7 @@ export class PgChatStorage implements ChatStorage {
   }
 
   public async updateSettings(next: Partial<RuntimeSettings>): Promise<RuntimeSettings> {
-    const merged = { ...(await this.getSettings()), ...next };
+    const merged = mergeRuntimeSettings(await this.getSettings(), next);
     const updatedAt = nowIso();
 
     // Persist every logical runtime key as JSON so schema evolution stays simple.

@@ -58,3 +58,5 @@
   - minimal reproduction（最小例）
   - proposed upstream change（Docs / Recipe / Tests / Helper のどれか）
 - app 固有の設計改善（例: repo 層の分割、トランザクション制御の置き場所など）は upstream へ混ぜず downstream に留める
+- upstream に上げる前に、downstream 側の整理で解消できないことを確認する（チェック: local helper 化 / docs 追記で足りるか / テストで固定すべきか）
+- upstream 化は原則 Issue -> PR の順で行い、PR はスコープ最小（Docs/Recipe/Tests 中心）にする。無関係な変更は混ぜない

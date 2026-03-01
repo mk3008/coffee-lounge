@@ -32,18 +32,28 @@ export interface OpenThreadOptions {
   threadId?: string;
 }
 
+export const DEFAULT_DOCKER_DATABASE_URL =
+  "postgres://app_user:app_password@127.0.0.1:5432/app_db";
+
+export function resolveConnectionString(): string {
+  const explicitConnectionString = process.env.DATABASE_URL?.trim();
+
+  // Prefer an explicit override, but keep the documented Docker setup working by default.
+  if (explicitConnectionString) {
+    return explicitConnectionString;
+  }
+
+  return DEFAULT_DOCKER_DATABASE_URL;
+}
+
 export async function createApp(rootDirectory: string): Promise<AppContext> {
   const defaultPersonaFile = resolve(rootDirectory, "packages/chat/personas/default.md");
-  const connectionString = process.env.DATABASE_URL;
-
-  if (!connectionString) {
-    throw new Error("DATABASE_URL is required for Postgres storage.");
-  }
+  const connectionString = resolveConnectionString();
 
   const storage = new PgChatStorage({
     connectionString,
     ddlFile: resolve(rootDirectory, "ztd/ddl/public.sql"),
-    defaultModel: "gpt-5-codex",
+    defaultModel: "gpt-5.2",
     defaultPersonaFile,
   });
 

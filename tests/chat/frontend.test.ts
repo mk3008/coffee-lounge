@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { renderChatBanner, renderThreadHistory } from "../../packages/chat/src/frontend.js";
+import {
+  DEFAULT_DOCKER_DATABASE_URL,
+  resolveConnectionString,
+} from "../../packages/chat/src/app.js";
 
 describe("chat frontend", () => {
   it("renders a compact session banner", () => {
@@ -48,5 +52,16 @@ describe("chat frontend", () => {
         },
       ]),
     ).toBe("[user] hello world\n[assistant] reply");
+  });
+
+  it("uses the documented Docker Postgres default when DATABASE_URL is unset", async () => {
+    const originalDatabaseUrl = process.env.DATABASE_URL;
+    delete process.env.DATABASE_URL;
+
+    try {
+      expect(resolveConnectionString()).toBe(DEFAULT_DOCKER_DATABASE_URL);
+    } finally {
+      process.env.DATABASE_URL = originalDatabaseUrl;
+    }
   });
 });
