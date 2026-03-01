@@ -1,0 +1,24 @@
+{
+  "name": "@coffee-lounge/chat",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "coffee": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@coffee-lounge/providers": "file:../providers",
+    "@coffee-lounge/storage": "file:../storage",
+    "commander": "^14.0.3"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "coffee-lounge",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/chat",
+    "packages/storage",
+    "packages/providers"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "postinstall": "npm run build --workspaces",
+    "check": "tsc --noEmit -p tsconfig.json && tsc -b tsconfig.build.json",
+    "test": "vitest run --config vitest.config.ts",
+    "ztd": "node scripts/run-ztd.mjs",
+    "ztd:config": "node scripts/run-ztd.mjs ztd-config",
+    "ztd:ddl:diff": "node scripts/run-ztd.mjs ddl diff",
+    "ztd:ddl:pull": "node scripts/run-ztd.mjs ddl pull",
+    "chat": "node packages/chat/dist/cli.js chat",
+    "coffee": "node packages/chat/dist/cli.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "@types/pg": "^8.15.6",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.2",
+    "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "@rawsql-ts/sql-contract": "file:../rawsql-ts/packages/sql-contract",
+    "commander": "^14.0.3",
+    "pg": "^8.16.3",
+    "zod": "^4.3.6"
+  }
+}
